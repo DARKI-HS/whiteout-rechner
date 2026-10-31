@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17212b">
+<title>Whiteout – Truppenrechner</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{color-scheme:dark;--bg:#101820;--panel:#1b2833;--panel2:#243542;--text:#f3f6f8;--muted:#a9bac6;--accent:#79c7d8;--line:#354956;--good:#8bd6a5;--warn:#ffd27d}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#14212b,#0d141b 65%);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:22px 16px 14px;max-width:900px;margin:auto}h1{font-size:1.45rem;margin:0 0 4px}header p{color:var(--muted);margin:0;font-size:.92rem}
+main{max-width:900px;margin:auto;padding:0 14px 36px}.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0 14px}
+button,.tab{border:1px solid var(--line);border-radius:12px;padding:11px 9px;background:var(--panel);color:var(--text);font:inherit;font-weight:650}
+.tab[aria-selected=true],button.primary{background:var(--accent);color:#10202a;border-color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px;margin:12px 0}
+h2{font-size:1.08rem;margin:0 0 12px}h3{font-size:.95rem;margin:14px 0 8px;color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+label{display:block;color:var(--muted);font-size:.82rem;margin-bottom:5px}
+input,select{width:100%;padding:11px 10px;border-radius:10px;border:1px solid var(--line);background:#101a22;color:var(--text);font:inherit;min-width:0}
+.field{min-width:0}.unit{font-size:.78rem;color:var(--muted);margin-top:4px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.row strong{font-variant-numeric:tabular-nums}
+.results{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.result{background:var(--panel2);border-radius:12px;padding:12px 9px;text-align:center}.result b{display:block;font-size:1.25rem;font-variant-numeric:tabular-nums}.result span{font-size:.78rem;color:var(--muted)}
+.bar{height:12px;border-radius:99px;overflow:hidden;background:#0c141a;display:flex;margin:12px 0 6px}.bar span:nth-child(1){background:#e7b96e}.bar span:nth-child(2){background:#7eb5d7}.bar span:nth-child(3){background:#a88ad9}
+.small{font-size:.82rem;color:var(--muted)}.notice{border-left:3px solid var(--warn);padding:8px 10px;background:#2b281f;border-radius:6px;color:#f4dfb6;font-size:.82rem}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actions button{flex:1}
+table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{text-align:right;padding:8px 4px;border-bottom:1px solid var(--line)}td:first-child,th:first-child{text-align:left}
+.hidden{display:none!important}.foot{font-size:.76rem;color:var(--muted);text-align:center;padding:16px}
+@media(max-width:520px){.grid{grid-template-columns:1fr 1fr}.grid .field:last-child:nth-child(odd){grid-column:1/-1}.results{gap:5px}.result{padding:10px 5px}.result b{font-size:1.05rem}.tabs button{font-size:.85rem;padding:10px 4px}}
+</style>
+</head>
+<body>
+<header>
+<h1>❄ Whiteout – Truppenrechner</h1>
+<p>Marsch · Rallye · Garnison | Deine Daten bleiben auf diesem Gerät</p>
+</header>
+<main>
+<div class="tabs" role="tablist" aria-label="Berechnungsmodus">
+<button class="tab" data-mode="march" aria-selected="true">Marsch</button>
+<button class="tab" data-mode="rally" aria-selected="false">Rallye</button>
+<button class="tab" data-mode="garrison" aria-selected="false">Garnison</button>
+</div>
+<section class="card">
+<h2>1. Verfügbare Truppen</h2>
+<p class="small">Trage deinen Bestand je Truppentyp und Stufe ein. Die Summen werden automatisch berechnet. Für die Zuteilung werden höhere Stufen zuerst verwendet.</p>
+<div style="overflow-x:auto">
+<table id="tierTable"><thead><tr><th>Stufe</th><th>Infanterie</th><th>Lanzenreiter</th><th>Schützen</th></tr></thead><tbody></tbody></table>
+</div>
+<div class="results" style="margin-top:12px">
+<div class="result"><b id="totalInf">0</b><span>Infanterie gesamt</span></div>
+<div class="result"><b id="totalLance">0</b><span>Lanzenreiter gesamt</span></div>
+<div class="result"><b id="totalMarks">0</b><span>Schützen gesamt</span></div>
+</div>
+<input id="inf" type="hidden" value="0"><input id="lance" type="hidden" value="0"><input id="marks" type="hidden" value="0">
+<div class="row" style="margin-top:12px"><span class="small">Gesamt verfügbar</span><strong id="totalAvailable">0</strong></div>
+</section>
+
+<section class="card">
+<h2 id="modeTitle">2. Marsch konfigurieren</h2>
+<div class="grid">
+<div class="field"><label for="capacity">Truppenlimit / Marsch</label><input id="capacity" type="number" min="0" step="1" inputmode="numeric" value="100000"></div>
+<div class="field"><label for="marches">Anzahl Märsche</label><input id="marches" type="number" min="1" step="1" inputmode="numeric" value="1"></div>
+<div class="field"><label for="preset">Vorlage</label><select id="preset"><option value="balanced">Ausgewogen 1:1:1</option><option value="front">Mehr Infanterie 3:1:1</option><option value="damage">Mehr Schaden 1:1:3</option><option value="custom">Eigene Quote</option></select></div>
+</div>
+<h3>Zielverhältnis</h3>
+<div class="grid">
+<div class="field"><label for="rInf">Infanterie-Anteil</label><input id="rInf" type="number" min="0" step="1" value="1"></div>
+<div class="field"><label for="rLance">Lanzenreiter-Anteil</label><input id="rLance" type="number" min="0" step="1" value="1"></div>
+<div class="field"><label for="rMarks">Schützen-Anteil</label><input id="rMarks" type="number" min="0" step="1" value="1"></div>
+</div>
+<p class="small" id="modeHint">Die Quote verteilt das Truppenlimit auf die drei Einheitentypen. Nicht verfügbare Einheiten werden nicht eingeplant.</p>
+</section>
+
+<section class="card">
+<h2>2. Berechnung</h2>
+<div class="results">
+<div class="result"><b id="outInf">0</b><span>Infanterie</span></div>
+<div class="result"><b id="outLance">0</b><span>Lanzenreiter</span></div>
+<div class="result"><b id="outMarks">0</b><span>Schützen</span></div>
+</div>
+<div class="bar"><span id="barInf" style="width:0%"></span><span id="barLance" style="width:0%"></span><span id="barMarks" style="width:0%"></span></div>
+<div class="row"><span class="small">Eingeplant</span><strong id="outTotal">0 / 0</strong></div>
+<div class="row"><span class="small">Übrig nach Berechnung</span><strong id="outLeft">0</strong></div>
+<div class="row"><span class="small">Auslastung des Limits</span><strong id="outPct">0 %</strong></div>
+<h3>Verwendete Stufen (höhere zuerst)</h3>
+<div style="overflow-x:auto"><table><thead><tr><th>Stufe</th><th>Infanterie</th><th>Lanzenreiter</th><th>Schützen</th></tr></thead><tbody id="usedTierRows"></tbody></table></div>
+<div id="warning" class="notice hidden" style="margin-top:12px"></div>
+<div class="actions">
+<button class="primary" id="copyBtn">Ergebnis kopieren</button>
+<button id="resetBtn">Eingaben zurücksetzen</button>
+</div>
+</section>
+
+<section class="card">
+<h2>3. Übersicht für mehrere Märsche</h2>
+<p class="small">Gleiche Zielquote je Marsch. Die Tabelle zeigt die Gesamtmenge für die eingestellte Marschanzahl, begrenzt durch deinen Bestand.</p>
+<table><thead><tr><th>Einheit</th><th>Gesamt eingeplant</th><th>Restbestand</th></tr></thead>
+<tbody><tr><td>Infanterie</td><td id="multiInf">0</td><td id="remainInf">0</td></tr><tr><td>Lanzenreiter</td><td id="multiLance">0</td><td id="remainLance">0</td></tr><tr><td>Schützen</td><td id="multiMarks">0</td><td id="remainMarks">0</td></tr></tbody></table>
+</section>
+<p class="notice">Hinweis: Die Quoten sind frei einstellbare Rechenvorlagen und keine offiziell bestätigten Optimalwerte. Passe sie an deinen Helden, Gegner, Spielmodus und deine Allianz-Strategie an.</p>
+
+<section class="card" id="heroSection">
+<h2>4. Heldenverwaltung</h2>
+<p class="small">Community-Heldenliste (Gen 0–17). Markiere deine Helden und trage deine Werte ein. Alle Angaben bleiben lokal gespeichert.</p>
+<div class="grid"><div class="field"><label for="heroSearch">Helden suchen</label><input id="heroSearch" placeholder="Name eingeben"></div><div class="field"><label for="heroGen">Generation</label><select id="heroGen"><option value="all">Alle</option></select></div><div class="field"><label for="heroFilter">Anzeigen</label><select id="heroFilter"><option value="all">Alle Helden</option><option value="owned">Nur meine Helden</option></select></div></div>
+<div id="heroList" style="max-height:370px;overflow:auto;margin-top:12px"></div>
+<h3>Meine Aufstellung</h3>
+<div class="grid"><div class="field"><label for="heroSlot0">Held 1</label><select id="heroSlot0"></select></div><div class="field"><label for="heroSlot1">Held 2</label><select id="heroSlot1"></select></div><div class="field"><label for="heroSlot2">Held 3</label><select id="heroSlot2"></select></div></div>
+<div id="heroSelectedDetails" class="small" style="margin-top:10px"></div>
+<p class="notice">Heldenboni werden noch nicht automatisch mit Kampfwerten verrechnet. Die eingetragenen Boni dienen der Dokumentation und dem Vergleich, nicht einer verifizierten Kampfsimulation.</p>
+</section>
+<div class="foot">Offline-fähig · Speicherung nur lokal im Browser · Keine Verbindung zu Spielservern</div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const tierFields = Array.from({length:11},(_,i)=>['inf','lance','marks'].map(t=>`t${i+1}_${t}`)).flat();
+const fields = [...tierFields,'capacity','marches','rInf','rLance','rMarks','preset'];
+let mode='march';
+const labels={march:'Marsch',rally:'Rallye',garrison:'Garnison'};
+function num(id,min=0){const v=Number($(id).value);return Number.isFinite(v)?Math.max(min,Math.floor(v)):0}
+
+const tierBody = $('tierTable').querySelector('tbody');
+for(let tier=11;tier>=1;tier--){
+ const tr=document.createElement('tr');
+ tr.innerHTML=`<td><strong>T${tier}</strong></td>`+
+  ['inf','lance','marks'].map(type=>`<td><input aria-label="T${tier} ${type}" id="t${tier}_${type}" type="number" min="0" step="1" inputmode="numeric" value="0" style="width:105px;padding:8px"></td>`).join('');
+ tierBody.appendChild(tr);
+}
+function syncTierTotals(){
+ ['inf','lance','marks'].forEach(type=>{
+  let sum=0;for(let t=1;t<=11;t++)sum+=num(`t${t}_${type}`);
+  $(type).value=sum;
+  $('total'+(type==='inf'?'Inf':type==='lance'?'Lance':'Marks')).textContent=sum.toLocaleString('de-DE');
+ });
+}
+function tierAllocation(type,count){
+ const result={};let remaining=count;
+ for(let t=11;t>=1;t--){
+  const available=num(`t${t}_${type}`);
+  const used=Math.min(available,remaining);
+  result[t]=used;remaining-=used;
+ }
+ return result;
+}
+function updateTierUsage(overall){
+ const rows=[];
+ for(let t=11;t>=1;t--){
+  const vals=['inf','lance','marks'].map((type,i)=>tierAllocation(type,overall[i])[t]||0);
+  if(vals.some(v=>v>0))rows.push(`<tr><td>T${t}</td>${vals.map(v=>`<td>${v.toLocaleString('de-DE')}</td>`).join('')}</tr>`);
+ }
+ $('usedTierRows').innerHTML=rows.length?rows.join(''):'<tr><td colspan="4" class="small">Noch keine Truppen eingeplant</td></tr>';
+}
+
+function save(){const data={};fields.forEach(id=>data[id]=$(id).value);data.mode=mode;try{localStorage.setItem('wosTroopCalc',JSON.stringify(data))}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem('wosTroopCalc')||'{}');fields.forEach(id=>{if(d[id]!==undefined)$(id).value=d[id]});if(d.mode)mode=d.mode}catch(e){}syncTierTotals();}
+function allocate(cap, avail, ratios){
+ let remaining=Math.min(cap,avail.reduce((a,b)=>a+b,0)), out=[0,0,0], active=[0,1,2].filter(i=>ratios[i]>0&&avail[i]>0);
+ // Iteratively allocate by weighted shares, redistributing capacity when a unit type runs out.
+ while(remaining>0&&active.length){
+  const weight=active.reduce((s,i)=>s+ratios[i],0); if(!weight)break;
+  let used=0, next=[];
+  active.forEach(i=>{const ideal=remaining*ratios[i]/weight;const take=Math.min(avail[i]-out[i],Math.floor(ideal));out[i]+=take;used+=take});
+  remaining-=used;
+  active=active.filter(i=>avail[i]-out[i]>0);
+  if(remaining>0&&active.length){
+   // distribute remaining one by one according to largest fractional remainder
+   const w=active.reduce((s,i)=>s+ratios[i],0);
+   const order=[...active].sort((a,b)=>(ratios[b]/w)-(ratios[a]/w));
+   let moved=0;for(const i of order){if(remaining<=0)break;if(out[i]<avail[i]){out[i]++;remaining--;moved++}}
+   if(!moved)break;
+  }
+  if(used===0&&remaining>0&&active.length===0)break;
+ }
+ return out;
+}
+function render(){
+ syncTierTotals();
+ const avail=[num('inf'),num('lance'),num('marks')], total=avail.reduce((a,b)=>a+b,0);
+ $('totalAvailable').textContent=total.toLocaleString('de-DE');
+ const cap=num('capacity'), marches=Math.max(1,num('marches',1)), ratios=[num('rInf'),num('rLance'),num('rMarks')];
+ const ratioSum=ratios.reduce((a,b)=>a+b,0);
+ const per=allocate(cap,avail,ratios);
+ const totalPlan=per.map(v=>v*marches);
+ // Reallocate global cap across all marches so the total never exceeds available troops.
+ const overall=allocate(cap*marches,avail,ratios);
+ const left=avail.map((v,i)=>v-overall[i]), used=overall.reduce((a,b)=>a+b,0);
+ updateTierUsage(overall);
+ ['outInf','outLance','outMarks'].forEach((id,i)=>$(id).textContent=per[i].toLocaleString('de-DE'));
+ $('outTotal').textContent=per.reduce((a,b)=>a+b,0).toLocaleString('de-DE')+' / '+cap.toLocaleString('de-DE');
+ $('outLeft').textContent=left.reduce((a,b)=>a+b,0).toLocaleString('de-DE');
+ $('outPct').textContent=(cap?Math.round(per.reduce((a,b)=>a+b,0)/cap*100):0)+' %';
+ const p=per.reduce((a,b)=>a+b,0)||1;
+ ['barInf','barLance','barMarks'].forEach((id,i)=>$(id).style.width=(per[i]/p*100)+'%');
+ ['multiInf','multiLance','multiMarks'].forEach((id,i)=>$(id).textContent=overall[i].toLocaleString('de-DE'));
+ ['remainInf','remainLance','remainMarks'].forEach((id,i)=>$(id).textContent=left[i].toLocaleString('de-DE'));
+ let msg='';if(!ratioSum)msg='Bitte gib bei mindestens einem Einheitentyp einen Anteil größer 0 ein.';
+ else if(total===0)msg='Trage zuerst deine verfügbaren Truppenzahlen ein.';
+ else if(cap===0)msg='Das Truppenlimit ist 0. Bitte gib ein gültiges Limit ein.';
+ else if(per.reduce((a,b)=>a+b,0)<Math.min(cap,total))msg='Das Limit kann nicht vollständig gefüllt werden. Prüfe deine Zielquote und verfügbaren Einheitentypen.';
+ $('warning').textContent=msg;$('warning').classList.toggle('hidden',!msg);
+ $('modeTitle').textContent='2. '+labels[mode]+' konfigurieren';
+ $('modeHint').textContent=mode==='march'?'Berechne eine Truppenaufteilung für einen oder mehrere Märsche.':mode==='rally'?'Nutze das Limit für deine Rallye-Teilnahme oder passe es auf die Rallye-Anforderung an.':'Berechne eine Truppenaufteilung für deine Garnison. Die Quote lässt sich frei anpassen.';
+ save();
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===b?'true':'false'));render()}));
+$('preset').addEventListener('change',()=>{const p=$('preset').value;const vals={balanced:[1,1,1],front:[3,1,1],damage:[1,1,3]};if(vals[p])['rInf','rLance','rMarks'].forEach((id,i)=>$(id).value=vals[p][i]);render()});
+tierFields.concat(['capacity','marches','rInf','rLance','rMarks']).forEach(id=>$(id).addEventListener('input',()=>{if(['rInf','rLance','rMarks'].includes(id))$('preset').value='custom';render()}));
+$('copyBtn').addEventListener('click',async()=>{const s=`Whiteout Survival – ${labels[mode]}\nInfanterie: ${$('outInf').textContent}\nLanzenreiter: ${$('outLance').textContent}\nSchützen: ${$('outMarks').textContent}\nGesamt: ${$('outTotal').textContent}\nRestbestand: ${$('outLeft').textContent}`;try{await navigator.clipboard.writeText(s);$('copyBtn').textContent='Kopiert ✓';setTimeout(()=>$('copyBtn').textContent='Ergebnis kopieren',1600)}catch(e){$('copyBtn').textContent='Kopieren nicht verfügbar'}});
+$('resetBtn').addEventListener('click',()=>{if(!confirm('Alle Eingaben zurücksetzen?'))return;localStorage.removeItem('wosTroopCalc');tierFields.forEach(id=>$(id).value=0);$('capacity').value=100000;$('marches').value=1;$('preset').value='balanced';['rInf','rLance','rMarks'].forEach(id=>$(id).value=1);mode='march';document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.mode===mode?'true':'false'));render()});
+load();document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.mode===mode?'true':'false'));render();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+const heroRoster=[{"name": "Smith", "type": "inf", "gen": 0}, {"name": "Eugene", "type": "inf", "gen": 0}, {"name": "Charlie", "type": "lance", "gen": 0}, {"name": "Cloris", "type": "marks", "gen": 0}, {"name": "Sergey", "type": "inf", "gen": 0}, {"name": "Jessie", "type": "lance", "gen": 0}, {"name": "Patrick", "type": "lance", "gen": 0}, {"name": "Lumak Bokan", "type": "lance", "gen": 0}, {"name": "Ling Xue", "type": "lance", "gen": 0}, {"name": "Gina", "type": "marks", "gen": 0}, {"name": "Bahiti", "type": "marks", "gen": 0}, {"name": "Jasser", "type": "marks", "gen": 0}, {"name": "Seo-yoon", "type": "marks", "gen": 0}, {"name": "Natalia", "type": "inf", "gen": 1}, {"name": "Jeronimo", "type": "inf", "gen": 1}, {"name": "Molly", "type": "lance", "gen": 1}, {"name": "Zinman", "type": "marks", "gen": 1}, {"name": "Flint", "type": "inf", "gen": 2}, {"name": "Philly", "type": "lance", "gen": 2}, {"name": "Alonso", "type": "marks", "gen": 2}, {"name": "Logan", "type": "inf", "gen": 3}, {"name": "Mia", "type": "lance", "gen": 3}, {"name": "Greg", "type": "marks", "gen": 3}, {"name": "Ahmose", "type": "inf", "gen": 4}, {"name": "Reina", "type": "lance", "gen": 4}, {"name": "Lynn", "type": "marks", "gen": 4}, {"name": "Hector", "type": "inf", "gen": 5}, {"name": "Norah", "type": "lance", "gen": 5}, {"name": "Gwen", "type": "marks", "gen": 5}, {"name": "Wu Ming", "type": "inf", "gen": 6}, {"name": "Renee", "type": "lance", "gen": 6}, {"name": "Wayne", "type": "marks", "gen": 6}, {"name": "Edith", "type": "inf", "gen": 7}, {"name": "Gordon", "type": "lance", "gen": 7}, {"name": "Bradley", "type": "marks", "gen": 7}, {"name": "Gatot", "type": "inf", "gen": 8}, {"name": "Sonya", "type": "lance", "gen": 8}, {"name": "Hendrik", "type": "marks", "gen": 8}, {"name": "Magnus", "type": "inf", "gen": 9}, {"name": "Fred", "type": "lance", "gen": 9}, {"name": "Xura", "type": "marks", "gen": 9}, {"name": "Gregory", "type": "inf", "gen": 10}, {"name": "Freya", "type": "lance", "gen": 10}, {"name": "Blanchette", "type": "marks", "gen": 10}, {"name": "Eleonora", "type": "inf", "gen": 11}, {"name": "Lloyd", "type": "lance", "gen": 11}, {"name": "Rufus", "type": "marks", "gen": 11}, {"name": "Hervor", "type": "inf", "gen": 12}, {"name": "Karol", "type": "lance", "gen": 12}, {"name": "Ligeia", "type": "marks", "gen": 12}, {"name": "Gisela", "type": "inf", "gen": 13}, {"name": "Flora", "type": "lance", "gen": 13}, {"name": "Vulcanus", "type": "marks", "gen": 13}, {"name": "Elif", "type": "inf", "gen": 14}, {"name": "Dominic", "type": "lance", "gen": 14}, {"name": "Cara", "type": "marks", "gen": 14}, {"name": "Hank", "type": "inf", "gen": 15}, {"name": "Estrella", "type": "lance", "gen": 15}, {"name": "Viveca", "type": "marks", "gen": 15}, {"name": "Seigel", "type": "inf", "gen": 16}, {"name": "Ursar", "type": "lance", "gen": 16}, {"name": "Aisling", "type": "marks", "gen": 16}, {"name": "Aiden", "type": "inf", "gen": 17}, {"name": "Bertha", "type": "lance", "gen": 17}, {"name": "Eleanor", "type": "marks", "gen": 17}];
+const heroKey='wosHeroesV1';
+let heroState={owned:{},slots:['','','']};
+try{const stored=JSON.parse(localStorage.getItem(heroKey)||'{}');if(stored&&typeof stored==='object')heroState={owned:stored.owned||{},slots:stored.slots||['','','']};}catch(e){}
+const heroTypes={inf:'Infanterie',lance:'Lanzenreiter',marks:'Schützen'};
+function saveHeroes(){try{localStorage.setItem(heroKey,JSON.stringify(heroState))}catch(e){}}
+for(let g=0;g<=17;g++){const opt=document.createElement('option');opt.value=String(g);opt.textContent='Generation '+g;$('heroGen').appendChild(opt)}
+function makeHeroOptions(){for(let i=0;i<3;i++){const sel=$('heroSlot'+i);sel.innerHTML='<option value="">Kein Held</option>';heroRoster.filter(h=>heroState.owned[h.name]).forEach(h=>{const o=document.createElement('option');o.value=h.name;o.textContent=h.name;sel.appendChild(o)});sel.value=heroState.slots[i]||'';if(!sel.value)heroState.slots[i]='';}}
+function heroRender(){
+const search=$('heroSearch').value.trim().toLowerCase(),gen=$('heroGen').value,ownedOnly=$('heroFilter').value==='owned';
+const filtered=heroRoster.filter(h=>(gen==='all'||String(h.gen)===gen)&&h.name.toLowerCase().includes(search)&&(!ownedOnly||heroState.owned[h.name]));
+const list=$('heroList');list.replaceChildren();
+filtered.forEach(h=>{
+const d=heroState.owned[h.name]||{};const wrap=document.createElement('div');wrap.style.cssText='padding:10px 2px;border-bottom:1px solid var(--line)';
+const head=document.createElement('label');head.style.cssText='display:flex;align-items:center;gap:8px;color:var(--text);font-size:.95rem';
+const chk=document.createElement('input');chk.type='checkbox';chk.checked=!!heroState.owned[h.name];chk.style.width='auto';chk.addEventListener('change',()=>{if(chk.checked)heroState.owned[h.name]={level:1,stars:0,expedition:'',exploration:''};else{delete heroState.owned[h.name];heroState.slots=heroState.slots.map(x=>x===h.name?'':x)}saveHeroes();makeHeroOptions();heroRender()});
+const title=document.createElement('span');title.textContent=h.name+' · Gen '+h.gen+' · '+heroTypes[h.type];head.append(chk,title);wrap.appendChild(head);
+if(heroState.owned[h.name]){
+const grid=document.createElement('div');grid.className='grid';grid.style.marginTop='8px';
+[['Level','level','number'],['Sterne (0–5)','stars','number'],['Expedition-Boni / Fähigkeiten','expedition','text'],['Erkundung-Fähigkeiten','exploration','text']].forEach(([label,key,type])=>{const field=document.createElement('div');field.className='field';const l=document.createElement('label');l.textContent=label;const inp=document.createElement('input');inp.type=type;inp.value=heroState.owned[h.name][key]??'';if(type==='number'){inp.min='0';inp.step='1';if(key==='stars')inp.max='5'}inp.addEventListener('input',()=>{heroState.owned[h.name][key]=type==='number'?Math.max(0,Math.floor(Number(inp.value)||0)):inp.value;saveHeroes();showSelectedHeroes()});field.append(l,inp);grid.appendChild(field)});wrap.appendChild(grid)}list.appendChild(wrap)});
+if(!filtered.length)list.textContent='Keine passenden Helden gefunden.';
+showSelectedHeroes();
+}
+function showSelectedHeroes(){const lines=heroState.slots.filter(Boolean).map(n=>{const d=heroState.owned[n]||{};return n+' · Level '+(d.level??'?')+' · '+(d.stars??'?')+' Sterne · Expedition: '+(d.expedition||'nicht eingetragen')});$('heroSelectedDetails').textContent=lines.length?lines.join(' | '):'Noch keine Helden für die Aufstellung gewählt.'}
+for(let i=0;i<3;i++)$('heroSlot'+i).addEventListener('change',()=>{const val=$('heroSlot'+i).value;if(val&&heroState.slots.some((v,j)=>j!==i&&v===val)){$('heroSlot'+i).value=heroState.slots[i]||'';alert('Jeder Held kann nur einmal in der Aufstellung stehen.');return}heroState.slots[i]=val;saveHeroes();showSelectedHeroes()});
+['heroSearch','heroGen','heroFilter'].forEach(id=>$(id).addEventListener(id==='heroSearch'?'input':'change',heroRender));
+makeHeroOptions();heroRender();
+</script>
+</body></html>
