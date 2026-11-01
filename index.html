@@ -8,107 +8,153 @@
 <title>Whiteout Truppenrechner</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101b27;color:white;
-font-family:Arial,sans-serif;padding:20px}
-main{max-width:480px;margin:auto}
-h1{font-size:25px;text-align:center}
-p{text-align:center;color:#a8bdce}
-.card{background:#1d3040;padding:18px;
-border-radius:16px;margin:16px 0}
-label{display:block;margin:12px 0 6px}
-input{width:100%;padding:14px;font-size:20px;
-border:1px solid #537084;border-radius:10px;
-background:#10212f;color:white}
-.result{display:flex;justify-content:space-between;
-padding:14px 0;border-bottom:1px solid #40576a}
-strong{color:#8cdeef}
-button{width:100%;padding:15px;border:0;
-border-radius:12px;background:#80d5e6;
-color:#10212f;font-size:17px;font-weight:bold}
-#error{color:#ffb4a8}
+body{margin:0;padding:18px;background:#101b27;color:white;font-family:Arial,sans-serif}
+main{max-width:500px;margin:auto}
+h1{text-align:center;font-size:24px}
+p{color:#b2c5d1;text-align:center}
+.card{background:#1d3040;padding:16px;border-radius:16px;margin:15px 0}
+label{display:block;margin:10px 0 6px}
+input{width:100%;padding:12px;border:1px solid #587587;border-radius:9px;background:#10212f;color:white;font-size:18px}
+.grid{display:grid;grid-template-columns:1fr 1.5fr;gap:10px}
+h3{margin-bottom:6px}
+.total{font-size:25px;color:#8cdeef}
+#error{color:#ffb4a8;text-align:left}
+button{width:100%;padding:14px;border:0;border-radius:10px;background:#80d5e6;color:#10212f;font-weight:bold;font-size:16px}
 </style>
 </head>
 <body>
 <main>
 <h1>❄️ Whiteout Truppenrechner</h1>
-<p>Gesamttruppen & Prozentverteilung</p>
+<p>Truppen und Prozente automatisch berechnen</p>
 
 <div class="card">
 <label>Gesamttruppen</label>
-<input id="total" type="number" min="0" value="100000">
-
-<label>Infanterie %</label>
-<input id="inf" type="number" min="0" max="100" value="50">
-
-<label>Lanzenreiter %</label>
-<input id="lan" type="number" min="0" max="100" value="20">
-
-<label>Schützen %</label>
-<input id="sch" type="number" min="0" max="100" value="30">
+<input id="total" type="number" min="0" step="1" value="100000">
 </div>
 
 <div class="card">
-<h2>Ergebnis</h2>
-<div class="result"><span>Infanterie</span><strong id="a">0</strong></div>
-<div class="result"><span>Lanzenreiter</span><strong id="b">0</strong></div>
-<div class="result"><span>Schützen</span><strong id="c">0</strong></div>
-<div class="result"><span>Gesamt</span><strong id="sum">0</strong></div>
+<div class="grid"><strong>Prozent</strong><strong>Anzahl</strong></div>
+<h3>Infanterie</h3>
+<div class="grid">
+<input id="p0" type="number" min="0" max="100" value="50">
+<input id="n0" type="number" min="0" step="1">
+</div>
+<h3>Lanzenreiter</h3>
+<div class="grid">
+<input id="p1" type="number" min="0" max="100" value="20">
+<input id="n1" type="number" min="0" step="1">
+</div>
+<h3>Schützen</h3>
+<div class="grid">
+<input id="p2" type="number" min="0" max="100" value="30">
+<input id="n2" type="number" min="0" step="1">
+</div>
+</div>
+
+<div class="card">
+<label>Berechnete Gesamttruppen</label>
+<div class="total" id="result">100.000</div>
 <p id="error"></p>
-<button onclick="copyResult()">Ergebnis kopieren</button>
+<button id="copy">Ergebnis kopieren</button>
 </div>
 </main>
 
 <script>
-const ids=["total","inf","lan","sch"];
-const get=id=>Number(document.getElementById(id).value);
+const el=id=>document.getElementById(id);
 const fmt=n=>n.toLocaleString("de-DE");
-let result=[0,0,0];
+const num=id=>Number(el(id).value);
+const names=["Infanterie","Lanzenreiter","Schützen"];
+let valid=true;
 
-function calculate(){
- const total=get("total");
- const rates=["inf","lan","sch"].map(get);
- const valid=Number.isSafeInteger(total)&&total>=0&&
- rates.every(x=>Number.isFinite(x)&&x>=0&&x<=100)&&
- Math.abs(rates.reduce((a,b)=>a+b,0)-100)<0.000001;
+function percentages(){
+ return [0,1,2].map(i=>num("p"+i));
+}
 
- document.getElementById("error").textContent=
- valid?"":"Bitte gültige Werte eingeben. Die Prozente müssen 100 % ergeben.";
+function check(){
+ const p=percentages();
+ const sum=p.reduce((a,b)=>a+b,0);
+ const ok=p.every(v=>Number.isFinite(v)&&v>=0&&v<=100)
+   &&Math.abs(sum-100)<0.000001;
+ valid=ok;
+ el("error").textContent=ok?"":"Die Prozente müssen zusammen 100 % ergeben.";
+ return ok;
+}
 
- if(!valid){
- ["a","b","c","sum"].forEach(id=>
- document.getElementById(id).textContent="–");
- return;
- }
-
- const exact=rates.map(x=>total*x/100);
- result=exact.map(Math.floor);
- let rest=total-result.reduce((a,b)=>a+b,0);
+function distribute(total){
+ const p=percentages();
+ const exact=p.map(v=>total*v/100);
+ const counts=exact.map(Math.floor);
+ let rest=total-counts.reduce((a,b)=>a+b,0);
  const order=[0,1,2].sort((a,b)=>
- (exact[b]-result[b])-(exact[a]-result[a]));
- for(let i=0;i<rest;i++)result[order[i%3]]++;
-
- ["a","b","c"].forEach((id,i)=>
- document.getElementById(id).textContent=fmt(result[i]));
- document.getElementById("sum").textContent=fmt(total);
- localStorage.setItem("whiteout-simple",JSON.stringify(
- ids.map(id=>document.getElementById(id).value)));
+   (exact[b]-counts[b])-(exact[a]-counts[a]));
+ for(let j=0;j<rest;j++)counts[order[j%3]]++;
+ return counts;
 }
 
-function copyResult(){
- const names=["Infanterie","Lanzenreiter","Schützen"];
- const text=names.map((name,i)=>name+": "+fmt(result[i])).join("\n");
- if(navigator.clipboard)navigator.clipboard.writeText(text);
+function update(mode,index){
+ if(!check())return;
+ let total;
+ if(mode==="count"){
+   const percent=num("p"+index);
+   const count=num("n"+index);
+   if(percent<=0||!Number.isSafeInteger(count)||count<0){
+     el("error").textContent="Für diese Klasse ist keine gültige Rückrechnung möglich.";
+     valid=false;
+     return;
+   }
+   total=Math.round(count*100/percent);
+ }else{
+   total=num("total");
+ }
+ if(!Number.isSafeInteger(total)||total<0){
+   el("error").textContent="Bitte eine gültige Gesamttruppenzahl eingeben.";
+   valid=false;
+   return;
+ }
+ const counts=distribute(total);
+ if(mode==="count"){
+   const entered=num("n"+index);
+   if(counts[index]!==entered){
+     el("error").textContent="Die eingegebene Anzahl kann bei dieser Prozentquote rundungsbedingt leicht abweichen.";
+   }
+ }
+ el("total").value=total;
+ counts.forEach((v,i)=>el("n"+i).value=v);
+ el("result").textContent=fmt(total);
+ try{
+   localStorage.setItem("wos-ratio",JSON.stringify({
+     total,p:percentages()
+   }));
+ }catch(e){}
 }
+
+el("total").addEventListener("input",()=>update("total"));
+for(let i=0;i<3;i++){
+ el("p"+i).addEventListener("input",()=>update("percent"));
+ el("n"+i).addEventListener("input",()=>update("count",i));
+}
+el("copy").addEventListener("click",()=>{
+ if(!valid)return;
+ const text=names.map((name,i)=>
+   name+": "+fmt(num("n"+i))+" ("+num("p"+i)+"%)"
+ ).join("\n");
+ if(navigator.clipboard)navigator.clipboard.writeText(
+   text+"\nGesamt: "+fmt(num("total"))
+ );
+});
 
 try{
- const saved=JSON.parse(localStorage.getItem("whiteout-simple"));
- if(Array.isArray(saved)&&saved.length===4)
- ids.forEach((id,i)=>document.getElementById(id).value=saved[i]);
+ const saved=JSON.parse(localStorage.getItem("wos-ratio"));
+ if(saved){
+   el("total").value=saved.total;
+   saved.p.forEach((v,i)=>el("p"+i).value=v);
+ }
 }catch(e){}
+update("total");
 
-ids.forEach(id=>document.getElementById(id)
-.addEventListener("input",calculate));
-calculate();
+if("serviceWorker" in navigator){
+ navigator.serviceWorker.register("./sw.js").catch(()=>{});
+}
 </script>
 </body>
 </html>
